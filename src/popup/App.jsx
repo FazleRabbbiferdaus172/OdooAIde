@@ -30,12 +30,10 @@ export default function App() {
 
   function messagesUpdate(newMessage) {
     setMessages([...messages, { message: userMessageInput, messageClass: "sent" }]);
-    debugger;
     setUserMessageInput("");
   }
 
   function scrollToLastMessage() {
-    debugger
     lastMessageRef.current?.scrollIntoView({
       behavior: 'smooth',
     });
