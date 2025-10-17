@@ -2,12 +2,50 @@ import { useState, useRef, useEffect, createContext } from 'react';
 import ChatBox from '@/components/ChatBox'
 import './App.css'
 
-
 export const IsWaitingContext = createContext(null);
+
+const DEFAULT_MESSAGE = "Hello! How can I assist you today?";
+const DEFAULT_INITIAL_PROMPT = [
+  {
+    role: 'system',
+    content: `You are OdooAide, an expert Odoo developer with 10 years of experience. Your primary purpose is to help developers write, debug, and understand Odoo code for views, action, menu, cron, python (both Python and XML).
+              Rules:
+                1. Always adhere to Odoo development best practices.
+                2. When generating code, provide both the XML view and the Python model changes unless specified otherwise.
+                3. Keep explanations concise and directly related to Odoo.
+                4. Format all code snippets in markdown code blocks with the language specified (e.g., \`\`\`xml or \`\`\`python).` }
+];
+const DEFAULT_SCHEMA = {
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "type": "string",
+      "description": "A conversational, natural language explanation for the user. This is always required."
+    },
+    "suggestion": {
+      "type": ["object", "null"],
+      "description": "An object containing the generated code snippets. This is optional and will be null if no code is suggested.",
+      "properties": {
+        "xml": {
+          "type": "string",
+          "description": "The generated XML code snippet, possibly empty."
+        },
+        "python": {
+          "type": "string",
+          "description": "The generated Python code snippet, possibly empty."
+        }
+      },
+      "required": ["xml", "python"]
+    }
+  },
+  "required": ["explanation"],
+  "additionalProperties": false
+}
+
 
 export default function App() {
   const defaultMessages = [
-    { message: "Hello!", messageClass: "received" }
+    { message: DEFAULT_MESSAGE, messageClass: "received" }
   ];
 
   let [messages, setMessages] = useState(defaultMessages);
@@ -18,7 +56,7 @@ export default function App() {
   let [aiResponse, setAiResponse] = useState("");
 
   function messagesUpdate(newMessage = false, messageClass = "sent") {
-    let message = userMessageInput;
+    let message = userMessageInput.trim();
     if (messageClass !== "sent") {
       if (newMessage !== false) {
         message = newMessage;
@@ -46,9 +84,7 @@ export default function App() {
     const availability = await window.LanguageModel.availability();
     if (availability === 'available') {
       let session = await LanguageModel.create({
-        initialPrompts: [
-          { role: 'system', content: 'You are a helpful and friendly assistant.Be professional with responses. Do not use any emojis in response' }
-        ],
+        initialPrompts: DEFAULT_INITIAL_PROMPT,
       });
       setChatSession(session);
       setIsWaitingForAi(false);
@@ -56,7 +92,9 @@ export default function App() {
   }
 
   async function sendUserPrompt(prompt) {
-    let ans = await chatSession.prompt([{ role: "user", content: prompt }]);
+    let ans = await chatSession.prompt(prompt, {
+      responseSchema: DEFAULT_SCHEMA,
+    });
     setIsWaitingForAi(false);
     setAiResponse(ans);
     console.log("AI Response: ", ans);
