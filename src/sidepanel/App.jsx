@@ -92,13 +92,24 @@ export default function App() {
   }
 
   async function sendUserPrompt(prompt) {
+    // Test scripting Start
+    function getTitle() { return document.title; }
+    let queryOptions = { active: true, currentWindow: true };
+    let [tab] = await chrome.tabs.query(queryOptions);
+    console.log("Active Tab: ", tab);
+    // Test scripting End
+    
+    const [tt] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: getTitle
+    });
+    console.log("Title from scripting: ", tt.result);
     let ans = await chatSession.prompt(prompt, {
       responseSchema: DEFAULT_SCHEMA,
     });
     setIsWaitingForAi(false);
     setAiResponse(ans);
     console.log("AI Response: ", ans);
-    // messagesUpdate(ans, 'received');
   }
 
   useEffect(() => {

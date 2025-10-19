@@ -10,8 +10,14 @@ export default defineManifest({
   },
   permissions: [
     'sidePanel',
-    'contentSettings',
+    "activeTab",
+    "scripting"],
+
+  host_permissions: [
+    "http://*/",
+    "https://*/"
   ],
+
   action: {
     default_icon: {
       48: 'public/logo.png',
