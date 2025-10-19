@@ -91,20 +91,74 @@ export default function App() {
     }
   }
 
-  async function sendUserPrompt(prompt) {
-    // Test scripting Start
-    function getTitle() { return document.title; }
+
+  // 1. how to use the ace lib for code editor in odoo module to edit
+
+  //   a. const targetElement = document.getElementsByClassName("ace_content")[0];
+  //   b. const edx = ace.edit(targertElement)
+  //   c. edx.session.setValue("<hi>yo<hi>") or edx.setValue("<hi>yo<hi>");
+
+  // 2. how to get the code value from ace editor in odoo module
+
+  //   a. const targetElement = document.getElementsByClassName("ace_content")[0];
+  //   b. const edx = ace.edit(targertElement)
+  //   c. const codeValue = edx.getValue();
+  //   or
+  //   a. document.getElementsByClassName("ace_content")[0].innerText
+
+
+  function getCodeFromActiveTab() {
+    try {
+      const codeValue = document.getElementsByClassName("ace_content")[0].innerText;
+      return codeValue;
+    } catch (error) {
+      console.error("Error retrieving code from ace editor: ", error);
+      return false;
+    }
+  }
+
+  async function getTab() {
     let queryOptions = { active: true, currentWindow: true };
     let [tab] = await chrome.tabs.query(queryOptions);
-    console.log("Active Tab: ", tab);
-    // Test scripting End
-    
-    const [tt] = await chrome.scripting.executeScript({
+    return tab;
+  }
+
+
+  function constructPromptWithCodeContext(prompt, codeContext) {
+    let currentPrompt = `Your task is to modify the code block provided below based on the user's request.
+
+                        **You MUST use the code provided in the "CURRENT CODE" block as your source.**
+                          **Do NOT ask the user to paste the code.** You already have it.
+
+                          ---
+                          CURRENT CODE:
+                          \`\`\`
+                          ${codeContext}
+                          \`\`\`
+                          ---
+                          USER REQUEST:
+                          ${prompt}
+                          ---
+
+                        Please provide the fully modified code block. If helpful, add a brief explanation of the changes you made.`
+    return currentPrompt;
+  }
+
+  async function sendUserPrompt(prompt) {
+    // Test scripting Start
+
+    const tab = await getTab();
+    const [scriptResponse] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      function: getTitle
+      function: getCodeFromActiveTab,
+      world: 'MAIN'
     });
-    console.log("Title from scripting: ", tt.result);
-    let ans = await chatSession.prompt(prompt, {
+    const codeContext = scriptResponse.result;
+    let promptWithContext = prompt;
+    if (codeContext !== false) {
+      promptWithContext = constructPromptWithCodeContext(prompt, codeContext);
+    }
+    let ans = await chatSession.prompt(promptWithContext, {
       responseSchema: DEFAULT_SCHEMA,
     });
     setIsWaitingForAi(false);
