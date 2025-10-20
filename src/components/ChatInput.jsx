@@ -15,24 +15,30 @@ export default function ChatInput(props) {
     }
 
     const loadingButton = (<Button loading variant="outlined">
-          Submit
-        </Button>);
+        Submit
+    </Button>);
     const sendButton = (<IconButton color="primary" aria-label="send message" type="submit">
-                <SendIcon />
-            </IconButton>)
+        <SendIcon />
+    </IconButton>)
     let button = isWaitingForAi ? loadingButton : sendButton;
 
     return (
-        <Paper component="form" onSubmit={handleSubmit} className="input-area" elevation={3}>
-            <TextField
-                fullWidth
-                variant="standard"
-                placeholder="Ask something..."
-                InputProps={{ disableUnderline: true }}
-                value={props.userMessageInput}
-                onChange={(e) => props.setUserMessageInput(e.target.value)}
-            />
-            {button}
+        <Paper component="form" onSubmit={handleSubmit} className="chat-input-box" elevation={3}>
+            <div className='chat-input-area'>
+                <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    variant="standard"
+                    placeholder="Ask something..."
+                    InputProps={{ disableUnderline: true }}
+                    value={props.userMessageInput}
+                    onChange={(e) => props.setUserMessageInput(e.target.value)}
+                />
+                {button}
+            </div>
+
         </Paper>
+
     )
 }
