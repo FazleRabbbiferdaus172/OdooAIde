@@ -5,6 +5,7 @@ import SendIcon from '@mui/icons-material/Send';
 import Button from '@mui/material/Button';
 import { Paper } from '@mui/material';
 import { IsWaitingContext } from '@/sidepanel/App'
+import ContextBox from './ContextBox';
 
 export default function ChatInput(props) {
     const isWaitingForAi = useContext(IsWaitingContext);
@@ -24,6 +25,7 @@ export default function ChatInput(props) {
 
     return (
         <Paper component="form" onSubmit={handleSubmit} className="chat-input-box" elevation={3}>
+            <ContextBox/>
             <div className='chat-input-area'>
                 <TextField
                     fullWidth
