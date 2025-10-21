@@ -80,6 +80,18 @@ export default function App() {
     });
   }
 
+  // todo: move to util?
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // todo: move to util?
+  async function getTab() {
+    let queryOptions = { active: true, currentWindow: true };
+    let [tab] = await chrome.tabs.query(queryOptions);
+    return tab;
+  }
+
   async function initializeChatSession() {
     const availability = await window.LanguageModel.availability();
     if (availability === 'available') {
@@ -91,6 +103,35 @@ export default function App() {
     }
   }
 
+  function attachMessageListener() {
+    // Todo: move it outside of this function and no need for return
+    const messageListener = (message, sender, sendResponse) => {
+      if (message.type === "CODE_CONTEXT_UPDATED") {
+        console.log("Code context updated:", message.payload);
+        setAllCodeContext([message.payload]);
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+    return messageListener;
+  }
+
+  async function sendInitialMessageToContentScript() {
+    const tab = await getTab();
+    console.log("Sending initial REQUEST_CODE_CONTEXT message to content script.");
+    chrome.tabs.sendMessage(tab.id, {
+      type: "REQUEST_CODE_CONTEXT",
+      payload: "intial request",
+    });
+  }
+
+  async function initializeApp() {
+    await initializeChatSession();
+    const messageListener = attachMessageListener();
+    await sleep(10);
+    sendInitialMessageToContentScript();
+    return messageListener;
+  }
 
   // 1. how to use the ace lib for code editor in odoo module to edit
 
@@ -106,7 +147,6 @@ export default function App() {
   //   or
   //   a. document.getElementsByClassName("ace_content")[0].innerText
 
-
   function getCodeFromActiveTab() {
     try {
       const codeValue = document.getElementsByClassName("ace_content")[0].innerText;
@@ -116,13 +156,6 @@ export default function App() {
       return false;
     }
   }
-
-  async function getTab() {
-    let queryOptions = { active: true, currentWindow: true };
-    let [tab] = await chrome.tabs.query(queryOptions);
-    return tab;
-  }
-
 
   function constructPromptWithCodeContext(prompt, codeContext) {
     let currentPrompt = `Your task is to modify the code block provided below based on the user's request.
@@ -145,7 +178,6 @@ export default function App() {
   }
 
   async function sendUserPrompt(prompt) {
-    // Test scripting Start
 
     const tab = await getTab();
     const [scriptResponse] = await chrome.scripting.executeScript({
@@ -166,14 +198,22 @@ export default function App() {
     console.log("AI Response: ", ans);
   }
 
+  // initial setup hook
+  useEffect(() => {
+    const messageListener = initializeApp();
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
+  },
+    []
+  )
+
+  // scroll to last message on new message
   useEffect(() => {
     scrollToLastMessage();
   }, [messages]);
 
-  useEffect(() => { initializeChatSession() },
-    []
-  )
-
+  // handle ai response
   useEffect(() => {
     if (aiResponse !== "") {
       messagesUpdate(aiResponse, 'received');
