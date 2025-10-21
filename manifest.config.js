@@ -14,8 +14,8 @@ export default defineManifest({
     "scripting"],
 
   host_permissions: [
-    "http://*/",
-    "https://*/"
+    "http://*/*",
+    "https://*/*"
   ],
 
   action: {
@@ -24,14 +24,20 @@ export default defineManifest({
     },
     // default_popup: 'src/popup/index.html',
   },
-  // content_scripts: [{
-  //   js: ['src/content/main.jsx'],
-  //   matches: ['https://*/*'],
-  // }],
+  
   side_panel: {
     default_path: 'src/sidepanel/index.html',
   },
   background: {
     service_worker: 'src/background/open_side_panel.js',
-  }
+  },
+  content_scripts: [
+    {
+      matches: [
+        "http://*/*",
+        "https://*/*"
+      ],
+      js: ["src/content/main.js"]
+    }
+  ]
 })
