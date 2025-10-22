@@ -5,7 +5,6 @@ import './chatbox.css';
 
 
 export default function ChatBox(props) {
-    // debugger;
     return (
         <Box className="chat-container">
             <ChatMessageContainer messages={props.messages} lastMessageRef={props.lastMessageRef} />
