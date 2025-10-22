@@ -1,20 +1,38 @@
+import { useEffect, useContext } from "react";
 import { Stack } from "@mui/material";
 import { Chip } from "@mui/material";
 
+import { SelectableCodeContext } from "@/sidepanel/App";
+import { SelectedCodeContext } from "@/sidepanel/App";
+
 export default function ContextBox(props) {
-    function handleClick(ev) {
-        console.info('You clicked the Chip.');
+    const allCodeContext = useContext(SelectableCodeContext);
+    const { userSelectedCodeContext, setUserSelectedCodeContext } = useContext(SelectedCodeContext);
+
+    let chipCodeContextList = allCodeContext.map((codeContext, index) =>
+        <Chip
+            key={index}
+            color={userSelectedCodeContext.includes(index) ? "primary" : "default"}
+            label={codeContext.slice(0, 12) + (codeContext.length > 12 ? "..." : "arc")}
+            size="small"
+            onClick={() => { handleClick(index) }}
+            onDelete={() => { handleDelete(index) }}
+        />
+    );
+
+    function handleClick(index) {
+        if (!userSelectedCodeContext.includes(index)) {
+            setUserSelectedCodeContext([index]);
+        }
     }
 
-    function handleDelete(ev) {
-        console.info('You deleted the Chip.');
+    function handleDelete(index) {
+        setUserSelectedCodeContext(userSelectedCodeContext.filter((item, idx) => idx !== index));
     }
 
     return (
         <Stack direction="row" spacing={1}>
-          <Chip color="primary" label="Soft" size="small" onClick={handleClick} onDelete={handleDelete}/>
-          <Chip label="Medium" size="small" onClick={handleClick} onDelete={handleDelete}/>
-          <Chip label="Hard" size="small" onClick={handleClick} onDelete={handleDelete}/>
+            {chipCodeContextList}
         </Stack>
     )
 }
