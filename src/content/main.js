@@ -3,6 +3,7 @@ const codeContentClass = '.ace_content';
 let lastSentCode = null; // A cache to prevent sending duplicate messages
 
 const findAndSendCode = () => {
+  // Find the code block element and send its content if it has changed
   const codeContentElement = document.querySelector(codeContentClass);
 
   if (!codeContentElement) {
@@ -14,11 +15,11 @@ const findAndSendCode = () => {
     const currentCode = document.querySelector(codeContentClass).innerText;
 
     if (currentCode !== lastSentCode) {
-      console.log("Code context updated. Sending to side panel.");
       chrome.runtime.sendMessage({
         type: "CODE_CONTEXT_UPDATED",
         payload: currentCode,
       });
+      // Todo: instead of updating every time, only update when it is acknowledged in side panel, also need 2 states 1. for scaning 2. sending message.
       lastSentCode = currentCode; // Update the cache
     }
     else {
@@ -31,11 +32,9 @@ const findAndSendCode = () => {
 
 
 function attachMessageListener() {
-  console.log("Attaching message listener in content script.");
+  // Listen for messages from the side panel
   const messageListener = (message, sender, sendResponse) => {
-    console.log("Content script received message: ", message.payload);
     if (message.type === "REQUEST_CODE_CONTEXT") {
-      console.log("Received REQUEST_CODE_CONTEXT message.");
       lastSentCode = null;
       findAndSendCode();
     }
@@ -44,8 +43,7 @@ function attachMessageListener() {
 }
 
 function setupObserver() {
-  console.log("Setting up MutationObserver in content script.");
-
+  // Set up a MutationObserver to monitor changes in the DOM
   const mainObserver = new MutationObserver((mutationsList) => {
     findAndSendCode();
   });
@@ -58,11 +56,9 @@ function setupObserver() {
 
 // Initial code send
 function main() {
-  console.log("Initializing main content script.......");
   findAndSendCode();
   attachMessageListener();
   setupObserver();
-  console.log("Main content script initialized and observing for code changes.");
 }
 
 main();
