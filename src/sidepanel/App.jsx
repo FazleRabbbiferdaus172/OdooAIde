@@ -18,12 +18,18 @@ const defaultMessages = [
 const DEFAULT_INITIAL_PROMPT = [
   {
     role: 'system',
-    content: `You are OdooAide, an expert Odoo developer with 10 years of experience. Your primary purpose is to help developers write, debug, and understand Odoo code for views, action, menu, cron, python (both Python and XML).
-              Rules:
-                1. Always adhere to Odoo development best practices.
-                2. When generating code, provide both the XML view and the Python model changes unless specified otherwise.
-                3. Keep explanations concise and directly related to Odoo.
-                4. Format all code snippets in markdown code blocks with the language specified (e.g., \`\`\`xml or \`\`\`python).` }
+    content: `You are OdooAide, an expert Odoo developer assistant.
+      Your sole purpose is to help developers write, debug, and understand Odoo code (Python and XML).
+
+      **Your Rules:**
+      1.  **Always respond in Markdown format.**
+      2.  Format all code snippets in Markdown code blocks (e.g., \`\`\`xml or \`\`\`python).
+      3.  If you provide multiple code blocks (like XML and Python), provide them one after another.
+      4.  Keep explanations concise and directly related to Odoo.
+      5.  Always provide full code snippets; never partial code.
+      6.  Be professional and helpful.\
+      `
+  }
 ];
 
 const DEFAULT_SCHEMA = {
@@ -62,7 +68,7 @@ export default function App() {
   let [userMessageInput, setUserMessageInput] = useState("");
   let [chatSession, setChatSession] = useState(undefined);
   let [isWaitingForAi, setIsWaitingForAi] = useState(true);
-  let [aiResponse, setAiResponse] = useState("");
+  let [aiResponse, setAiResponse] = useState("done");
   let [allCodeContext, setAllCodeContext] = useState([]);
   let [userSelectedCodeContext, setUserSelectedCodeContext] = useState([]);
 
@@ -81,7 +87,8 @@ export default function App() {
     if (messageClass === "sent") {
       setUserMessageInput("");
       setIsWaitingForAi(true);
-      sendUserPrompt(message)
+      // sendUserPrompt(message);
+      streamUserPrompt(message);
     }
   }
 
@@ -164,22 +171,42 @@ export default function App() {
 
   function constructPromptWithCodeContext(prompt, codeContext) {
     // Construct prompt by embedding code context
-    let currentPrompt = `Your task is to modify the code block provided below based on the user's request.
+    let currentPrompt = `**TASK:** Modify the provided "CURRENT CODE" based on the "USER REQUEST". Follow the example EXACTLY.
+                        --- EXAMPLE START ---
+                        CURRENT CODE:
+                        \`\`\`xml
+                        <tree>
+                          <header>
+                            <button name="action_approve" string="Approve"/>
+                          </header>
+                          <field name="name"/>
+                        </tree>
+                        \`\`\`
+                        USER REQUEST: "remove the header"
 
-                        **You MUST use the code provided in the "CURRENT CODE" block as your source.**
-                          **Do NOT ask the user to paste the code.** You already have it.
+                        YOUR RESPONSE:
+                        \`\`\`xml
+                        <tree>
+                          <field name="name"/>
+                        </tree>
+                        \`\`\`
+                        Removed the header section as requested.
+                        --- EXAMPLE END ---
 
-                          ---
-                          CURRENT CODE:
-                          \`\`\`
-                          ${codeContext}
-                          \`\`\`
-                          ---
-                          USER REQUEST:
-                          ${prompt}
-                          ---
 
-                        Please provide the fully modified code block. If helpful, add a brief explanation of the changes you made.`
+                        --- CURRENT TASK ---
+                        CURRENT CODE:
+                        \`\`\`
+                        ${codeContext}
+                        \`\`\`
+                        USER REQUEST: "${prompt}"
+
+                        **YOUR RESPONSE INSTRUCTIONS:**
+                        1.  **OUTPUT ONLY THE FINAL, MODIFIED CODE BLOCK.**
+                        2.  Do **NOT** repeat the "CURRENT CODE" block.
+                        3.  Optionally, add a brief explanation *after* the code block.
+                        4.  Use Markdown for the entire response.
+                        ---`;
     return currentPrompt;
   }
 
@@ -192,12 +219,49 @@ export default function App() {
     if (codeContext !== false) {
       promptWithContext = constructPromptWithCodeContext(prompt, codeContext);
     }
-    let ans = await chatSession.prompt(promptWithContext, {
-      responseConstraint: DEFAULT_SCHEMA,
-    });
+    let ans = await chatSession.prompt(promptWithContext);
 
     setIsWaitingForAi(false);
     setAiResponse(ans);
+  }
+
+  async function streamUserPrompt(prompt) {
+    // Stream user prompt to chat session
+    setAiResponse("in_progress");
+    let reply = "";
+    setMessages(prev => [...prev, { message: "", messageClass: "received" }]);
+    const codeContext = userSelectedCodeContext.length > 0 ? allCodeContext[userSelectedCodeContext[0]] : false;
+    let promptWithContext = prompt;
+    if (codeContext !== false) {
+      promptWithContext = constructPromptWithCodeContext(prompt, codeContext);
+    }
+
+    try {
+      const stream = await chatSession.promptStreaming(promptWithContext);
+
+      for await (const chunk of stream) {
+        reply += chunk;
+        setMessages(prevMessages => {
+          let lastMessageIndex = prevMessages.length - 1;
+          let updatedMessages = [...prevMessages];
+          updatedMessages[lastMessageIndex] = { message: reply, messageClass: "received" };
+          return updatedMessages;
+        });
+      }
+    }
+    catch (error) {
+      console.error("Error during streaming:", error);
+      setMessages(prevMessages => {
+        let lastMessageIndex = prevMessages.length - 1;
+        let updatedMessages = [...prevMessages];
+        updatedMessages[lastMessageIndex] = { message: "Error occurred while receiving response.", messageClass: "received" };
+        return updatedMessages;
+      });
+    }
+    finally {
+      setIsWaitingForAi(false);
+      setAiResponse("done");
+    }
   }
 
   // initial setup hook
@@ -214,16 +278,6 @@ export default function App() {
   useEffect(() => {
     scrollToLastMessage();
   }, [messages]);
-
-  // handle ai response
-  useEffect(() => {
-    if (aiResponse !== "") {
-      messagesUpdate(aiResponse, 'received');
-      setAiResponse("");
-    }
-  },
-    [aiResponse]
-  )
 
   useEffect(() => {
     const tempSelectedContext = allCodeContext.map((codeContext, index) => index);
