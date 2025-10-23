@@ -3,8 +3,18 @@ import ChatBox from '@/components/ChatBox'
 import './App.css'
 
 export const IsWaitingContext = createContext(null);
+export const SelectableCodeContext = createContext([]);
+export const SelectedCodeContext = createContext();
 
 const DEFAULT_MESSAGE = "Hello! How can I assist you today?";
+const defaultMessages = [
+  {
+    message: JSON.stringify({
+      explanation: DEFAULT_MESSAGE,
+      codeBlock: null
+    }), messageClass: "received"
+  }
+];
 const DEFAULT_INITIAL_PROMPT = [
   {
     role: 'system',
@@ -15,6 +25,7 @@ const DEFAULT_INITIAL_PROMPT = [
                 3. Keep explanations concise and directly related to Odoo.
                 4. Format all code snippets in markdown code blocks with the language specified (e.g., \`\`\`xml or \`\`\`python).` }
 ];
+
 const DEFAULT_SCHEMA = {
   "type": "object",
   "properties": {
@@ -22,20 +33,20 @@ const DEFAULT_SCHEMA = {
       "type": "string",
       "description": "A conversational, natural language explanation for the user. This is always required."
     },
-    "suggestion": {
+    "codeBlock": {
       "type": ["object", "null"],
       "description": "An object containing the generated code snippets. This is optional and will be null if no code is suggested.",
       "properties": {
-        "xml": {
+        "code": {
           "type": "string",
-          "description": "The generated XML code snippet, possibly empty."
+          "description": "The generated code snippet, possibly empty."
         },
-        "python": {
+        "language": {
           "type": "string",
-          "description": "The generated Python code snippet, possibly empty."
+          "description": "The language of the code snippet. Possible values are 'xml', 'python', 'javascript' or 'markdown'."
         }
       },
-      "required": ["xml", "python"]
+      "required": ["code", "language", "markdown"]
     }
   },
   "required": ["explanation"],
@@ -44,16 +55,16 @@ const DEFAULT_SCHEMA = {
 
 
 export default function App() {
-  const defaultMessages = [
-    { message: DEFAULT_MESSAGE, messageClass: "received" }
-  ];
+  // to keep track of last message for scrolling
+  let lastMessageRef = useRef(null);
 
   let [messages, setMessages] = useState(defaultMessages);
   let [userMessageInput, setUserMessageInput] = useState("");
   let [chatSession, setChatSession] = useState(undefined);
-  let lastMessageRef = useRef(null);
   let [isWaitingForAi, setIsWaitingForAi] = useState(true);
   let [aiResponse, setAiResponse] = useState("");
+  let [allCodeContext, setAllCodeContext] = useState([]);
+  let [userSelectedCodeContext, setUserSelectedCodeContext] = useState([]);
 
   function messagesUpdate(newMessage = false, messageClass = "sent") {
     let message = userMessageInput.trim();
@@ -75,6 +86,7 @@ export default function App() {
   }
 
   function scrollToLastMessage() {
+    // Scroll to the last message
     lastMessageRef.current?.scrollIntoView({
       behavior: 'smooth',
     });
@@ -93,6 +105,7 @@ export default function App() {
   }
 
   async function initializeChatSession() {
+    // Initialize Language Model and Chat Session
     const availability = await window.LanguageModel.availability();
     if (availability === 'available') {
       let session = await LanguageModel.create({
@@ -104,11 +117,11 @@ export default function App() {
   }
 
   function attachMessageListener() {
+    // Attach message listener to receive code context updates from content script
     // Todo: move it outside of this function and no need for return
     const messageListener = (message, sender, sendResponse) => {
       if (message.type === "CODE_CONTEXT_UPDATED") {
-        console.log("Code context updated:", message.payload);
-        setAllCodeContext([message.payload]);
+        setAllCodeContext([...allCodeContext, message.payload]);
       }
     };
 
@@ -117,8 +130,8 @@ export default function App() {
   }
 
   async function sendInitialMessageToContentScript() {
+    // Send initial message to content script to request code context
     const tab = await getTab();
-    console.log("Sending initial REQUEST_CODE_CONTEXT message to content script.");
     chrome.tabs.sendMessage(tab.id, {
       type: "REQUEST_CODE_CONTEXT",
       payload: "intial request",
@@ -126,6 +139,7 @@ export default function App() {
   }
 
   async function initializeApp() {
+    // Initial setup function
     await initializeChatSession();
     const messageListener = attachMessageListener();
     await sleep(10);
@@ -147,17 +161,9 @@ export default function App() {
   //   or
   //   a. document.getElementsByClassName("ace_content")[0].innerText
 
-  function getCodeFromActiveTab() {
-    try {
-      const codeValue = document.getElementsByClassName("ace_content")[0].innerText;
-      return codeValue;
-    } catch (error) {
-      console.error("Error retrieving code from ace editor: ", error);
-      return false;
-    }
-  }
 
   function constructPromptWithCodeContext(prompt, codeContext) {
+    // Construct prompt by embedding code context
     let currentPrompt = `Your task is to modify the code block provided below based on the user's request.
 
                         **You MUST use the code provided in the "CURRENT CODE" block as your source.**
@@ -178,24 +184,20 @@ export default function App() {
   }
 
   async function sendUserPrompt(prompt) {
+    // Send user prompt to chat session with code context if available
 
-    const tab = await getTab();
-    const [scriptResponse] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      function: getCodeFromActiveTab,
-      world: 'MAIN'
-    });
-    const codeContext = scriptResponse.result;
+    // Todo: this should not be 0th index all the time, need to handle multiple context selection
+    const codeContext = userSelectedCodeContext.length > 0 ? allCodeContext[userSelectedCodeContext[0]] : false;
     let promptWithContext = prompt;
     if (codeContext !== false) {
       promptWithContext = constructPromptWithCodeContext(prompt, codeContext);
     }
     let ans = await chatSession.prompt(promptWithContext, {
-      responseSchema: DEFAULT_SCHEMA,
+      responseConstraint: DEFAULT_SCHEMA,
     });
+
     setIsWaitingForAi(false);
     setAiResponse(ans);
-    console.log("AI Response: ", ans);
   }
 
   // initial setup hook
@@ -223,9 +225,18 @@ export default function App() {
     [aiResponse]
   )
 
+  useEffect(() => {
+    const tempSelectedContext = allCodeContext.map((codeContext, index) => index);
+    setUserSelectedCodeContext(tempSelectedContext);
+  }, [allCodeContext]);
+
   return (
     <IsWaitingContext value={isWaitingForAi}>
-      <ChatBox messages={messages} lastMessageRef={lastMessageRef} messagesUpdate={messagesUpdate} userMessageInput={userMessageInput} setUserMessageInput={setUserMessageInput} />
+      <SelectableCodeContext value={allCodeContext}>
+        <SelectedCodeContext value={{ userSelectedCodeContext, setUserSelectedCodeContext }}>
+          <ChatBox messages={messages} lastMessageRef={lastMessageRef} messagesUpdate={messagesUpdate} userMessageInput={userMessageInput} setUserMessageInput={setUserMessageInput} />
+        </SelectedCodeContext>
+      </SelectableCodeContext>
     </IsWaitingContext>
   )
 }
