@@ -1,8 +1,30 @@
+import { useContext } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { Paper } from '@mui/material';
 import ListItem from '@mui/material/ListItem';
 import CodeBlock from './CodeBlock';
+import AnimatedCursor from './AnimatedCursor';
+import { IsWaitingContext } from '@/sidepanel/App'
 
+const markdownComponents = {
+    code({ node, inline, className, children, ...props }) {
+        const match = /language-(\w+)/.exec(className || '');
+        const lang = match ? match[1] : 'text';
 
+        return !inline ? (
+            <CodeBlock
+                code={String(children).replace(/\n$/, '')}
+                language={lang}
+            />
+        ) : (
+
+            <code className={className} {...props}>
+                {children}
+            </code>
+        );
+    }
+};
 
 function sentMessage(message) {
     return (
@@ -15,6 +37,7 @@ function sentMessage(message) {
 }
 
 function receivedMessage(message) {
+    const isWaitingForAi = useContext(IsWaitingContext);
     try {
         const parsedMessage = JSON.parse(message);
         let codeBlockElements = null; // Use 'let' and a clearer variable name
@@ -41,7 +64,12 @@ function receivedMessage(message) {
         return (
             <ListItem sx={{ justifyContent: 'flex-start' }}>
                 <Paper className={"message received"}>
-                    {message}
+                    <ReactMarkdown
+                        children={message || ""}
+                        rehypePlugins={[rehypeSanitize]} // Sanitize HTML
+                        components={markdownComponents}  // Use custom CodeBlock
+                    />
+                    {isWaitingForAi ? <AnimatedCursor /> : null}
                 </Paper>
             </ListItem>
         );
