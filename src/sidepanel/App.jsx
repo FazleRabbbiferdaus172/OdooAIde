@@ -111,6 +111,7 @@ export default function App() {
     return tab;
   }
 
+  // Todo: move to chatbox comeponent?
   async function initializeChatSession() {
     // Initialize Language Model and Chat Session
     const availability = await window.LanguageModel.availability();
@@ -168,7 +169,7 @@ export default function App() {
   //   or
   //   a. document.getElementsByClassName("ace_content")[0].innerText
 
-
+  // Todo: move to chatbox
   function constructPromptWithCodeContext(prompt, codeContext) {
     // Construct prompt by embedding code context
     let currentPrompt = `**TASK:** Modify the provided "CURRENT CODE" based on the "USER REQUEST". Follow the example EXACTLY.
@@ -210,6 +211,7 @@ export default function App() {
     return currentPrompt;
   }
 
+  // todo: move to chatinput?
   async function sendUserPrompt(prompt) {
     // Send user prompt to chat session with code context if available
 
@@ -225,6 +227,7 @@ export default function App() {
     setAiResponse(ans);
   }
 
+  // todo: move to chatinput?
   async function streamUserPrompt(prompt) {
     // Stream user prompt to chat session
     setAiResponse("in_progress");
