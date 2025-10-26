@@ -36,8 +36,7 @@ function sentMessage(message) {
     );
 }
 
-function receivedMessage(message) {
-    const isWaitingForAi = useContext(IsWaitingContext);
+function receivedMessage(message, isInProgress) {
     try {
         const parsedMessage = JSON.parse(message);
         let codeBlockElements = null; // Use 'let' and a clearer variable name
@@ -69,7 +68,7 @@ function receivedMessage(message) {
                         rehypePlugins={[rehypeSanitize]} // Sanitize HTML
                         components={markdownComponents}  // Use custom CodeBlock
                     />
-                    {isWaitingForAi ? <AnimatedCursor /> : null}
+                    {isInProgress ? <AnimatedCursor /> : null}
                 </Paper>
             </ListItem>
         );
@@ -79,6 +78,8 @@ function receivedMessage(message) {
 
 export default function ChatMessageBox(props) {
     const message = props.message;
-    const renderedMessage = props.messageClass === "sent" ? sentMessage(message) : receivedMessage(message);
+    const isWaitingForAi = useContext(IsWaitingContext)
+    const isInProgress = props.messageClass === "received" && isWaitingForAi && props.isLastMessage;
+    const renderedMessage = props.messageClass === "sent" ? sentMessage(message) : receivedMessage(message, isInProgress);
     return renderedMessage;
 }
