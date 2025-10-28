@@ -5,6 +5,7 @@ import { Box, Paper, Typography, IconButton } from '@mui/material';
 import CopyAllIcon from '@mui/icons-material/CopyAll';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import { Highlight, themes } from "prism-react-renderer";
+import Button from '@mui/material/Button';
 
 // Props: language (string), code (string)
 const CodeBlock = ({ language, code }) => {
@@ -16,6 +17,10 @@ const CodeBlock = ({ language, code }) => {
     setTimeout(() => {
       setIsCopied(false);
     }, 2000);
+  };
+
+  const handleApply = () => {
+    console.log(`Apply code`);
   };
 
   // Map 'python' to 'py' and 'xml' to 'markup' as required by prism
@@ -45,6 +50,7 @@ const CodeBlock = ({ language, code }) => {
         <Typography variant="body2" sx={{ textTransform: 'uppercase' }}>
           {language}
         </Typography>
+        <Button size="small" onClick={handleApply}>Apply</Button>
         <IconButton onClick={handleCopy} size="small" color="inherit">
           {isCopied ? 
             <DoneAllIcon fontSize="small" sx={{ color: 'lightgreen' }} /> : 
