@@ -211,12 +211,18 @@ export default function App() {
     return currentPrompt;
   }
 
+
+  function getCodeContextForPrompt() {
+    // Get code context based on user selection
+    return userSelectedCodeContext.length > 0 ? allCodeContext[userSelectedCodeContext[0]] : false;
+  }
+
   // todo: move to chatinput?
   async function sendUserPrompt(prompt) {
     // Send user prompt to chat session with code context if available
 
     // Todo: this should not be 0th index all the time, need to handle multiple context selection
-    const codeContext = userSelectedCodeContext.length > 0 ? allCodeContext[userSelectedCodeContext[0]] : false;
+    const codeContext = getCodeContextForPrompt();
     let promptWithContext = prompt;
     if (codeContext !== false) {
       promptWithContext = constructPromptWithCodeContext(prompt, codeContext);
