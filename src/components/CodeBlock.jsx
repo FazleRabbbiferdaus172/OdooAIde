@@ -20,6 +20,13 @@ const CodeBlock = ({ language, code }) => {
     return userSelectedCodeContext.length > 0 ? allCodeContext[userSelectedCodeContext[0]] : false;
   }
 
+  // todo: move to util, and import here
+  async function getTab() {
+    let queryOptions = { active: true, currentWindow: true };
+    let [tab] = await chrome.tabs.query(queryOptions);
+    return tab;
+  }
+
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
     setIsCopied(true);
@@ -28,8 +35,43 @@ const CodeBlock = ({ language, code }) => {
     }, 2000);
   };
 
-  const handleApply = () => {
-    console.log(`Apply code`);
+  const handleApply = async () => {
+    console.log("Attempting to apply code...");
+
+    try {
+      const tab = await getTab();
+      if (!tab || !tab.id) {
+        console.error("No active tab found.");
+        return;
+      }
+
+      const injectionFunction = (newCode) => {
+        try {
+          const codeEditorElement = document.querySelector('.ace_content');
+          if (!codeEditorElement) {
+            console.error("OdooAide: Could not find Ace editor element.");
+            return;
+          }
+
+          const editor = ace.edit(codeEditorElement.parentElement.parentElement);
+          editor.setValue(newCode, 1);
+
+        } catch (error) {
+          console.error("OdooAide: Error applying code to Ace editor:", error);
+        }
+      };
+
+      // 3. Execute the script in the MAIN world
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: 'MAIN',
+        func: injectionFunction,
+        args: [code] // This passes 'codeToApply' as the 'newCode' argument
+      });
+
+    } catch (error) {
+      console.error("Error sending apply command:", error);
+    }
   };
 
   const toggleDiff = () => {
