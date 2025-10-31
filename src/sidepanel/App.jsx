@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, createContext } from 'react';
 import ChatBox from '@/components/ChatBox'
+import Header from '@/components/Header';
 import './App.css'
 
 export const IsWaitingContext = createContext(null);
@@ -297,7 +298,10 @@ export default function App() {
     <IsWaitingContext value={isWaitingForAi}>
       <SelectableCodeContext value={allCodeContext}>
         <SelectedCodeContext value={{ userSelectedCodeContext, setUserSelectedCodeContext }}>
-          <ChatBox messages={messages} lastMessageRef={lastMessageRef} messagesUpdate={messagesUpdate} userMessageInput={userMessageInput} setUserMessageInput={setUserMessageInput} />
+          <div className="main-app-container">
+            <Header />
+            <ChatBox messages={messages} lastMessageRef={lastMessageRef} messagesUpdate={messagesUpdate} userMessageInput={userMessageInput} setUserMessageInput={setUserMessageInput} />
+          </div>
         </SelectedCodeContext>
       </SelectableCodeContext>
     </IsWaitingContext>
